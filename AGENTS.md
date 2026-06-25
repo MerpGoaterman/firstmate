@@ -43,7 +43,7 @@ Hard rules, in priority order:
 
 You may freely write to this repo itself (backlog, briefs, state, even this file when the captain approves a change).
 Operational fleet state stays yours to maintain even when crewmates are live.
-Shared, tracked material means `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `.tasks.toml`, `.github/workflows/`, `bin/`, and agent skill files.
+Shared, tracked material means `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `.tasks.toml`, `.github/workflows/`, `bin/`, `seed/`, and agent skill files.
 When one or more crewmates are in flight, delegate changes to shared, tracked material to a crewmate through the normal scout or ship machinery instead of hand-editing them yourself.
 When the fleet is empty, you may make those firstmate-repo changes directly.
 Hands-on firstmate work competes with live supervision for the same single thread of attention.
@@ -709,7 +709,27 @@ The status-reporting protocol is intentionally sparse: crewmates append status o
 For any generated brief that still contains `{TASK}`, replace it with a clear task description, acceptance criteria, and any constraints or context the crewmate needs before spawning or seeding.
 Adjust the other sections only when the task genuinely deviates from the standard ship-a-new-PR shape (e.g. fixing an existing external PR); the scaffold is the contract, not a suggestion.
 
-## 12. Self-update
+## 12. Agent memory bootstrap
+
+Captain-global agent instructions live in `~/.agent/GLOBAL.md`, not in this repo's gitignored `data/`.
+Walrus holds durable cross-session facts; `GLOBAL.md` holds lean static operating rules for every harness.
+firstmate ships the canonical seed at `seed/agent-memory/` and wires a new machine with one command:
+
+```sh
+bin/fm-setup-memory.sh
+```
+
+On Windows PowerShell when bash is not on PATH:
+
+```powershell
+bin/fm-setup-memory.ps1
+```
+
+The `/setupmemory` skill wraps the same script.
+It installs `GLOBAL.md`, hardlinks it into Grok/Codex/OpenCode, writes Claude's `@` import, copies `wremember`/`wrecall` skills, patches memwal MCP config, and tries 1Password-backed Walrus credentials when available.
+Re-run after `/updatefirstmate` to pick up seed changes; pass `--force` to replace a customized `GLOBAL.md`.
+
+## 13. Self-update
 
 firstmate is its own repo behind the no-mistakes gate, so improvements to `AGENTS.md`, `bin/`, and skills reach `main` and then wait for each running firstmate to pull them.
 The `/updatefirstmate` skill performs that pull in place for the running main firstmate and every secondmate.
