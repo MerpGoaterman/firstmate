@@ -741,6 +741,16 @@ The `/setupmemory` skill wraps the same script.
 It pulls `GLOBAL.md` from the private seed repo, hardlinks it into Grok/Codex/OpenCode, writes Claude's `@` import, copies `wremember`/`wrecall` skills from firstmate seed, patches memwal MCP config, and tries 1Password-backed Walrus credentials when available.
 Re-run after pulling either repo; pass `--force` to replace a customized `GLOBAL.md`.
 
+Captain terminal stack (WezTerm, tmux, Helix) lives in the same private `agent-memory` repo under `captain/<platform>/`.
+Bootstrap with:
+
+```sh
+bin/fm-setup-captain.sh --install-brew
+```
+
+The `/setupcaptain` skill wraps that script.
+Open WezTerm to land in tmux session `captain` at `~/firstmate`, then launch your harness.
+
 ## 13. Self-update
 
 firstmate is its own repo behind the no-mistakes gate, so improvements to `AGENTS.md`, `bin/`, and skills reach `main` and then wait for each running firstmate to pull them.
