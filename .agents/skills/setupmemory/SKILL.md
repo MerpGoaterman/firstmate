@@ -23,6 +23,19 @@ printf '%s\n' 'git@github.com:YOU/agent-memory.git' > ~/.config/firstmate/memory
 bin/fm-setup-memory.sh
 ```
 
+If zsh reports `permission denied`, either:
+
+```sh
+chmod +x bin/fm-setup-memory.sh
+bin/fm-setup-memory.sh
+```
+
+or:
+
+```sh
+bash bin/fm-setup-memory.sh
+```
+
 Windows PowerShell:
 
 ```powershell
