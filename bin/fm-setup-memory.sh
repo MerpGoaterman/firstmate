@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Bootstrap cross-harness agent memory on this machine.
 #
-# Installs ~/.agent/GLOBAL.md from firstmate seed, hardlinks (or symlinks) it
-# into Grok/Codex/OpenCode harness homes, writes Claude's @-import, copies
-# Walrus wremember/wrecall skills, patches memwal MCP config, and optionally
-# builds ~/.memwal/credentials.json from 1Password.
+# Installs ~/.agent/GLOBAL.md from a private memory-seed repo, hardlinks (or
+# symlinks) it into Grok/Codex/OpenCode harness homes, writes Claude's
+# @-import, copies Walrus wremember/wrecall skills from firstmate seed,
+# patches memwal MCP config, and optionally builds ~/.memwal/credentials.json
+# from 1Password.
+#
+# Personal GLOBAL.md never lives in the public firstmate repo. Configure your
+# private seed via FM_MEMORY_SEED_DIR, FM_MEMORY_SEED_REPO, or
+# ~/.config/firstmate/memory-seed-repo.
 #
 # Idempotent: safe to re-run after git pull or on a new machine.
 #
@@ -15,14 +20,17 @@ set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FM_ROOT="${FM_ROOT_OVERRIDE:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-SEED="$FM_ROOT/seed/agent-memory"
+PUBLIC_SEED="$FM_ROOT/seed/agent-memory"
 GLOBAL_REL=".agent/GLOBAL.md"
+MEMORY_SEED_CONFIG="${FM_MEMORY_SEED_CONFIG:-$HOME/.config/firstmate/memory-seed-repo}"
+MEMORY_SEED_CACHE="${FM_MEMORY_SEED_CACHE:-$HOME/.cache/firstmate/memory-seed}"
 
 FORCE=0
 SKIP_CREDS=0
 
 usage() {
   echo "usage: fm-setup-memory.sh [--force] [--skip-creds]" >&2
+  echo "  Private GLOBAL.md: FM_MEMORY_SEED_DIR, FM_MEMORY_SEED_REPO, or $MEMORY_SEED_CONFIG" >&2
 }
 
 while [ $# -gt 0 ]; do
@@ -51,6 +59,81 @@ is_windows() {
   esac
   [ -n "${WINDIR:-}" ] && return 0
   return 1
+}
+
+read_memory_seed_repo_url() {
+  if [ -n "${FM_MEMORY_SEED_REPO:-}" ]; then
+    printf '%s\n' "$FM_MEMORY_SEED_REPO"
+    return 0
+  fi
+  if [ -f "$MEMORY_SEED_CONFIG" ]; then
+    tr -d '[:space:]' <"$MEMORY_SEED_CONFIG"
+    return 0
+  fi
+  return 1
+}
+
+sync_memory_seed_repo() {
+  local repo_url=$1
+  command -v git >/dev/null 2>&1 || {
+    echo "error: git required to clone private memory seed" >&2
+    exit 1
+  }
+  mkdir -p "$(dirname "$MEMORY_SEED_CACHE")"
+  if [ -d "$MEMORY_SEED_CACHE/.git" ]; then
+    git -C "$MEMORY_SEED_CACHE" pull --ff-only
+    echo "pulled: private memory seed"
+    return 0
+  fi
+  git clone "$repo_url" "$MEMORY_SEED_CACHE"
+  echo "cloned: private memory seed"
+}
+
+resolve_memory_seed_dir() {
+  if [ -n "${FM_MEMORY_SEED_DIR:-}" ]; then
+    if [ -f "$FM_MEMORY_SEED_DIR/GLOBAL.md" ]; then
+      printf '%s\n' "$FM_MEMORY_SEED_DIR"
+      return 0
+    fi
+    echo "error: FM_MEMORY_SEED_DIR missing GLOBAL.md: $FM_MEMORY_SEED_DIR" >&2
+    exit 1
+  fi
+
+  if [ -f "$MEMORY_SEED_CACHE/GLOBAL.md" ]; then
+    printf '%s\n' "$MEMORY_SEED_CACHE"
+    return 0
+  fi
+
+  local repo_url
+  if repo_url=$(read_memory_seed_repo_url); then
+    [ -n "$repo_url" ] || {
+      echo "error: memory seed repo URL is empty in $MEMORY_SEED_CONFIG" >&2
+      exit 1
+    }
+    sync_memory_seed_repo "$repo_url"
+    if [ -f "$MEMORY_SEED_CACHE/GLOBAL.md" ]; then
+      printf '%s\n' "$MEMORY_SEED_CACHE"
+      return 0
+    fi
+    echo "error: cloned memory seed missing GLOBAL.md at $MEMORY_SEED_CACHE" >&2
+    exit 1
+  fi
+
+  cat >&2 <<EOF
+error: no private memory seed configured.
+
+Personal GLOBAL.md must come from a private repo, not public firstmate.
+
+One-time setup:
+  mkdir -p ~/.config/firstmate
+  printf '%s\n' 'git@github.com:YOU/agent-memory.git' > ~/.config/firstmate/memory-seed-repo
+
+Or run with:
+  FM_MEMORY_SEED_DIR=/path/to/private/agent-memory bin/fm-setup-memory.sh
+
+See seed/agent-memory/README.md for the full split.
+EOF
+  exit 1
 }
 
 path_for_claude_import() {
@@ -85,7 +168,7 @@ install_global() {
   fi
   if [ "$FORCE" -eq 1 ]; then
     cp "$seed_global" "$global"
-    echo "updated: $global (from seed)"
+    echo "updated: $global (from private seed)"
     return 0
   fi
   echo "kept: $global (differs from seed; pass --force to replace)" >&2
@@ -171,7 +254,7 @@ patch_json_memwal() {
     echo "skipped: $harness memwal MCP (node not found)" >&2
     return 0
   }
-  local patcher=$SEED/scripts/patch-harness-mcp.mjs
+  local patcher=$PUBLIC_SEED/scripts/patch-harness-mcp.mjs
   local home_for_cfg
   if is_windows && command -v cygpath >/dev/null 2>&1; then
     home_for_cfg=$(cygpath -w "$HOME")
@@ -188,7 +271,7 @@ install_memwal_creds() {
     return 0
   fi
   if is_windows; then
-    local ps1=$SEED/scripts/setup-memwal-creds.ps1
+    local ps1=$PUBLIC_SEED/scripts/setup-memwal-creds.ps1
     if command -v pwsh >/dev/null 2>&1; then
       pwsh -NoProfile -File "$ps1" && return 0
     fi
@@ -196,7 +279,7 @@ install_memwal_creds() {
       powershell -NoProfile -File "$ps1" && return 0
     fi
   else
-    local sh=$SEED/scripts/setup-memwal-creds.sh
+    local sh=$PUBLIC_SEED/scripts/setup-memwal-creds.sh
     if [ -x "$sh" ] || chmod +x "$sh" 2>/dev/null; then
       bash "$sh" && return 0
     fi
@@ -204,13 +287,11 @@ install_memwal_creds() {
   echo "skipped: memwal credentials (run seed scripts manually or memwal_login in a harness)" >&2
 }
 
-[ -f "$SEED/GLOBAL.md" ] || {
-  echo "error: missing seed at $SEED/GLOBAL.md" >&2
-  exit 1
-}
+MEMORY_SEED_DIR=$(resolve_memory_seed_dir)
+PRIVATE_GLOBAL="$MEMORY_SEED_DIR/GLOBAL.md"
 
 GLOBAL="$HOME/$GLOBAL_REL"
-install_global "$GLOBAL" "$SEED/GLOBAL.md"
+install_global "$GLOBAL" "$PRIVATE_GLOBAL"
 
 link_global "$HOME/.grok/Agents.md" "$GLOBAL" "grok Agents.md"
 link_global "$HOME/.codex/AGENTS.md" "$GLOBAL" "codex AGENTS.md"
@@ -218,7 +299,7 @@ link_global "$HOME/.config/opencode/AGENTS.md" "$GLOBAL" "opencode AGENTS.md"
 write_claude_import "$GLOBAL" "$HOME/.claude/CLAUDE.md"
 
 for skill in wremember wrecall; do
-  src="$SEED/skills/$skill/SKILL.md"
+  src="$PUBLIC_SEED/skills/$skill/SKILL.md"
   [ -f "$src" ] || continue
   install_skill "$src" "$HOME/.grok/skills/$skill/SKILL.md"
   install_skill "$src" "$HOME/.claude/skills/$skill/SKILL.md"

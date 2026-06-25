@@ -1,0 +1,30 @@
+# Global Agent Instructions
+Grok · Codex · Claude Code · OpenCode
+
+## Code Search
+Zoekt first: http://YOUR_ZOEKT_HOST:6070. Local search only if Zoekt fails. Pull before work, push after.
+
+## Memory (Walrus)
+Namespace `YOUR_NAMESPACE`. Only memory store — no Grok native memory.
+Save: `/wremember` · Recall: `/wrecall`. Recall first turn if helpful; full-text remember on ask; durable prefs only.
+
+## Tool Preference (AXI first)
+When a task touches an external service, check for an **AXI** (Agent eXperience Interface) before MCP or raw CLI.
+
+**Priority:** AXI > MCP > raw CLI. Fall back only when no AXI covers the domain or the AXI is unavailable.
+
+Catalog: https://axi.md
+
+| AXI | Domain | Notes |
+| --- | --- | --- |
+| `gh-axi` | GitHub | Issues, PRs, workflow runs, releases. Wraps `gh`. |
+| `chrome-devtools-axi` | Browser automation | Navigate, click, fill, extract. Wraps chrome-devtools-mcp. |
+| `lavish-axi` | Human review | Agent HTML artifacts into collaborative review surfaces. |
+
+Run the AXI with no args first for live state and contextual next-step hints.
+
+## Engineering
+- Tech decisions: favor quality, simplicity, robustness, scalability, maintainability over development cost.
+- Bug fixes: reproduce E2E as an end user would first; fix the real problem, not a symptom.
+- Never use the em dash (—). Use a plain hyphen (-) instead.
+- Commits: never add your agent name as co-author.

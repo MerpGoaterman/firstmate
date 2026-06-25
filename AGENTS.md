@@ -713,7 +713,19 @@ Adjust the other sections only when the task genuinely deviates from the standar
 
 Captain-global agent instructions live in `~/.agent/GLOBAL.md`, not in this repo's gitignored `data/`.
 Walrus holds durable cross-session facts; `GLOBAL.md` holds lean static operating rules for every harness.
-firstmate ships the canonical seed at `seed/agent-memory/` and wires a new machine with one command:
+
+**Privacy split:** personal `GLOBAL.md` lives in a **private** git repo (for example `agent-memory`).
+Public firstmate ships only the bootstrap machinery under `seed/agent-memory/` (skills, MCP patchers, `GLOBAL.md.example`).
+Never commit captain-specific `GLOBAL.md` to a public firstmate fork.
+
+One-time private seed config:
+
+```sh
+mkdir -p ~/.config/firstmate
+printf '%s\n' 'git@github.com:YOU/agent-memory.git' > ~/.config/firstmate/memory-seed-repo
+```
+
+Bootstrap on a new machine:
 
 ```sh
 bin/fm-setup-memory.sh
@@ -726,8 +738,8 @@ bin/fm-setup-memory.ps1
 ```
 
 The `/setupmemory` skill wraps the same script.
-It installs `GLOBAL.md`, hardlinks it into Grok/Codex/OpenCode, writes Claude's `@` import, copies `wremember`/`wrecall` skills, patches memwal MCP config, and tries 1Password-backed Walrus credentials when available.
-Re-run after `/updatefirstmate` to pick up seed changes; pass `--force` to replace a customized `GLOBAL.md`.
+It pulls `GLOBAL.md` from the private seed repo, hardlinks it into Grok/Codex/OpenCode, writes Claude's `@` import, copies `wremember`/`wrecall` skills from firstmate seed, patches memwal MCP config, and tries 1Password-backed Walrus credentials when available.
+Re-run after pulling either repo; pass `--force` to replace a customized `GLOBAL.md`.
 
 ## 13. Self-update
 

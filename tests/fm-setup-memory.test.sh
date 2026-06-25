@@ -22,11 +22,13 @@ cleanup() {
 trap cleanup EXIT
 
 TMP_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/fm-setup-memory-tests.XXXXXX")
+FIXTURE_SEED="$ROOT/tests/fixtures/memory-seed"
 
 run_setup() {
   local home=$1
   shift
-  HOME="$home" FM_ROOT_OVERRIDE="$ROOT" "$ROOT/bin/fm-setup-memory.sh" --skip-creds "$@"
+  HOME="$home" FM_ROOT_OVERRIDE="$ROOT" FM_MEMORY_SEED_DIR="$FIXTURE_SEED" \
+    "$ROOT/bin/fm-setup-memory.sh" --skip-creds "$@"
 }
 
 test_installs_global_and_links() {
@@ -81,9 +83,18 @@ test_force_replaces_global() {
   run_setup "$home" --force >/dev/null
   grep -q 'custom' "$home/.agent/GLOBAL.md" \
     && fail "custom GLOBAL.md survived --force"
-  cmp -s "$home/.agent/GLOBAL.md" "$ROOT/seed/agent-memory/GLOBAL.md" \
+  cmp -s "$home/.agent/GLOBAL.md" "$FIXTURE_SEED/GLOBAL.md" \
     || fail "GLOBAL.md does not match seed after --force"
   pass "--force replaces GLOBAL.md from seed"
+}
+
+test_requires_private_seed_without_config() {
+  local home="$TMP_ROOT/home-f"
+  mkdir -p "$home"
+  if HOME="$home" FM_ROOT_OVERRIDE="$ROOT" "$ROOT/bin/fm-setup-memory.sh" --skip-creds >/dev/null 2>&1; then
+    fail "setup succeeded without private memory seed configured"
+  fi
+  pass "refuses to run without private memory seed"
 }
 
 test_patches_json_mcp_configs() {
@@ -102,3 +113,4 @@ test_idempotent_second_run
 test_keeps_custom_global_without_force
 test_force_replaces_global
 test_patches_json_mcp_configs
+test_requires_private_seed_without_config
