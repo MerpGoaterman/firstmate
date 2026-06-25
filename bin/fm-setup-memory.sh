@@ -82,11 +82,11 @@ sync_memory_seed_repo() {
   mkdir -p "$(dirname "$MEMORY_SEED_CACHE")"
   if [ -d "$MEMORY_SEED_CACHE/.git" ]; then
     git -C "$MEMORY_SEED_CACHE" pull --ff-only
-    echo "pulled: private memory seed"
+    echo "pulled: private memory seed" >&2
     return 0
   fi
   git clone "$repo_url" "$MEMORY_SEED_CACHE"
-  echo "cloned: private memory seed"
+  echo "cloned: private memory seed" >&2
 }
 
 resolve_memory_seed_dir() {
